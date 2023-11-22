@@ -140,6 +140,7 @@ class Model(nn.Module):
                 next_idx = prob.argmax()
                 out  = torch.cat([out , next_idx.unsqueeze(0)], dim=-1)
             else: 
+                # given a probability, get 1 sample
                 next_idx = torch.multinomial(prob, 1)
                 out  = torch.cat([out , next_idx], dim=-1)
             
@@ -147,4 +148,22 @@ class Model(nn.Module):
         return out
 
 
+
+def calculate_perplexity(model, data_loader, device):
+    model.eval()  # Set the model to evaluation mode
+    total_loss = 0.0
+    total_words = 0
+
+    with torch.no_grad():
+        for inputs, targets in data_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            outputs = model(inputs)
+            loss = F.cross_entropy(outputs, targets, reduction='sum')
+
+            total_loss += loss.item()
+            total_words += targets.size(0)
+
+    perplexity = 2 ** (total_loss / total_words)
+    return perplexity
 
