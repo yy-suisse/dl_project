@@ -28,8 +28,11 @@ class config:
     sequence_l = 128
     batch_size = 128
     d_model = 768 # d_model， embedding dim
-    num_layer = 6 # number of blocks stacked
+    num_layer = 12 # number of blocks stacked
     number_head = 8 # multihead attention
     d_ff = 2048 # feedforward dimension
     dropout = 0.2
+
     learning_rate = 1e-4
+    gamma = 0.9
+
