@@ -99,6 +99,8 @@ class Block(nn.Module):
 class Model(nn.Module):
     def __init__(self,stoi):
         super().__init__()
+
+        self.apply(self._init_weights)
         self.stoi = stoi
         self.tok_emb = nn.Embedding(len(stoi),c.d_model)
         self.pos_emb = PositionalEncoding()
@@ -127,6 +129,17 @@ class Model(nn.Module):
             loss = None
 
         return logit, loss # loss for training, logit for generate
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        elif isinstance(module, nn.LayerNorm):
+            torch.nn.init.zeros_(module.bias)
+            torch.nn.init.ones_(module.weight)
     
 
     @torch.no_grad()

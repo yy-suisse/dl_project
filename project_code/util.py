@@ -33,6 +33,7 @@ class config:
     d_ff = 2048 # feedforward dimension
     dropout = 0.2
 
-    learning_rate = 1e-4
+    learning_rate = 5e-4
+    
     gamma = 0.9
 

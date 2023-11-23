@@ -18,13 +18,15 @@ model = Model(stoi=dataset.stoi)
 m = model.to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=c.learning_rate)
 
-model.train(True)
 for epoch in range(50):
+    model.train(True)
+
     inputs, targets = next(iter(data_loader))
     logit,loss = m(inputs,'train', targets)
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+    
     print(loss)
     print(torch.exp(loss))
 
