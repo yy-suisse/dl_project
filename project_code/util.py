@@ -29,7 +29,7 @@ class config:
     batch_size = 128
     d_model = 768 # d_model， embedding dim
     num_layer = 12 # number of blocks stacked
-    number_head = 8 # multihead attention
+    number_head = 8  # multihead attention
     d_ff = 2048 # feedforward dimension
     dropout = 0.2
 

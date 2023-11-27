@@ -35,15 +35,18 @@ class Head(nn.Module):
         self.key = nn.Linear(c.d_model,head_size,bias=False)
         self.query = nn.Linear(c.d_model,head_size,bias=False)
         self.value = nn.Linear(c.d_model,head_size,bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(c.sequence_l, c.sequence_l)))
+        self.register_buffer('tril', torch.tril(torch.ones(c.sequence_l, c.sequence_l))) #tril : lower trangular = 1 --> causal
 
 
-    def forward(self,x): # x:[batch, l_seq, d_model]
+    def forward(self,x): 
+        B,L,D = x.shape # x:[batch, l_seq, d_model]
         k = self.key(x) # k:[batch, l_seq, head_size]
         q = self.query(x) # q:[batch, l_seq, head_size]
         v = self.value(x) # v:[batch, l_seq, head_size]
-        qkt = q@k.transpose(2,1)/self.head_size**0.5 #[batch*l_seq*l_seq]
-        qkt = qkt.masked_fill(self.tril == 0, float('-inf'))
+
+        qkt = q@k.transpose(2,1)/(self.head_size**0.5) #[batch*l_seq*l_seq]
+
+        qkt = qkt.masked_fill(self.tril[:L,:L] == 0, float('-inf'))
         qkt = F.softmax(qkt, dim = -1)
         z = qkt@v # z:[batch * l_seq*l_seq]@[batch, l_seq, head_size] = [batch, l_seq, head_size]
         return z
@@ -68,9 +71,10 @@ class MultiHeadAttention(nn.Module):
 class FeedForward(nn.Module):
     def __init__(self):
         super().__init__()
-        self.ff=nn.Sequential( nn.Linear(c.d_model,4*c.d_model),
+        self.ff=nn.Sequential(nn.Linear(c.d_model,4*c.d_model),
                               nn.ReLU(),
-                              nn.Linear(4*c.d_model,c.d_model))
+                              nn.Linear(4*c.d_model,c.d_model),
+                              nn.Dropout(c.dropout))
     def forward(self,x):
         x = self.ff(x)
         return x
@@ -83,7 +87,7 @@ class Block(nn.Module):
 
         self.self_attention = MultiHeadAttention(head_size)
 
-        self.norm1  = nn.LayerNorm(c.d_model)
+        self.norm1  = nn.LayerNorm(c.d_model) # normalize for every sample
 
         self.ffn = FeedForward()
 
@@ -103,7 +107,7 @@ class Model(nn.Module):
         self.apply(self._init_weights)
         self.stoi = stoi
         self.tok_emb = nn.Embedding(len(stoi),c.d_model)
-        self.pos_emb = PositionalEncoding()
+        self.position_embedding_table = nn.Embedding(c.sequence_l,c.d_model)
         self.dropout1 = nn.Dropout(c.dropout)
 
         self.blocks = nn.Sequential(*[Block() for _ in range(c.num_layer)])
@@ -112,8 +116,12 @@ class Model(nn.Module):
         self.loss_compute = nn.CrossEntropyLoss()
 
     def forward(self, x, use='train',y = None ):
+        _,L = x.shape
         emb_x = self.tok_emb(x)
-        emb_x = self.pos_emb(emb_x) # x,y = emb = [batch size * sequence_l * d_model]
+        device = emb_x.device
+        emb_pos = self.position_embedding_table(torch.arange(L,device = device ))
+        emb_x = emb_pos + emb_x
+        
         emb_x = self.dropout1(emb_x)
 
         emb_x = self.blocks(emb_x)
@@ -145,38 +153,23 @@ class Model(nn.Module):
     @torch.no_grad()
     def generate(self, output_length, seed_idx, criteria):
         out = seed_idx
+
         for _ in range(output_length):
-            logit,_ = self(seed_idx, use = 'generate')
-            prob = F.softmax(logit[-1,-1,:], dim = -1)
+            logit,_ = self(seed_idx, use = 'generate')  #[batch size * sequence_l * number_of_char]
+            prob = F.softmax(logit[:,-1,:], dim = -1) #[batch size * number_of_char]
             
             if criteria == 'high_prob': 
                 next_idx = prob.argmax()
-                out  = torch.cat([out , next_idx.unsqueeze(0)], dim=-1)
+                out  = torch.cat([out , next_idx[None, None]], dim=-1)
             else: 
                 # given a probability, get 1 sample
                 next_idx = torch.multinomial(prob, 1)
                 out  = torch.cat([out , next_idx], dim=-1)
             
             seed_idx = out[-c.sequence_l:]
-        return out
+        return out.squeeze(0)
 
 
 
-def calculate_perplexity(model, data_loader, device):
-    model.eval()  # Set the model to evaluation mode
-    total_loss = 0.0
-    total_words = 0
 
-    with torch.no_grad():
-        for inputs, targets in data_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
-
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets, reduction='sum')
-
-            total_loss += loss.item()
-            total_words += targets.size(0)
-
-    perplexity = 2 ** (total_loss / total_words)
-    return perplexity
 
