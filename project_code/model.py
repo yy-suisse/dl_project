@@ -6,27 +6,7 @@ import math
 
 c = config()
 
-class PositionalEncoding(nn.Module):
 
-    def __init__(self, dropout: float = 0.1, max_len: int = 5000):
-        super().__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, c.d_model, 2) * (-math.log(10000.0) / c.d_model))
-        pe = torch.zeros(max_len, 1, c.d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term) # pe: [seq_lens * 1 * d_model] for each sample
-
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        """
-        Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]
-        """
-        x = x + self.pe[:x.size(0)]
-        return self.dropout(x)
 
 class Head(nn.Module):
     def __init__(self,head_size):
@@ -119,7 +99,7 @@ class Model(nn.Module):
         _,L = x.shape
         emb_x = self.tok_emb(x)
         device = emb_x.device
-        emb_pos = self.position_embedding_table(torch.arange(L,device = device ))
+        emb_pos = self.position_embedding_table(torch.arange(L,device = device))
         emb_x = emb_pos + emb_x
         
         emb_x = self.dropout1(emb_x)
@@ -133,10 +113,12 @@ class Model(nn.Module):
             logit = logit.view(c.batch_size*c.sequence_l,len(self.stoi))
             y = y.view(c.batch_size*c.sequence_l)
             loss = self.loss_compute(logit,y)
+            perplexity = torch.exp(loss)
         elif use == 'generate':
             loss = None
+            perplexity = None
 
-        return logit, loss # loss for training, logit for generate
+        return logit, loss, perplexity # loss for training, logit for generate
     
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -144,7 +126,7 @@ class Model(nn.Module):
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            torch.nn.init.xavier_uniform_(module.weight, mean=0.0, std=0.02)
         elif isinstance(module, nn.LayerNorm):
             torch.nn.init.zeros_(module.bias)
             torch.nn.init.ones_(module.weight)
@@ -156,7 +138,7 @@ class Model(nn.Module):
 
         for i in range(output_length):
             print(i)
-            logit,_ = self(seed_idx, use = 'generate')  #[batch size * sequence_l * number_of_char]
+            logit,_,_ = self(seed_idx, use = 'generate')  #[batch size * sequence_l * number_of_char]
             prob = F.softmax(logit[:,-1,:], dim = -1) #[batch size * number_of_char]
             
             if criteria == 'high_prob': 
@@ -169,8 +151,8 @@ class Model(nn.Module):
             
             seed_idx = out[:,-c.sequence_l:]
         return out.squeeze(0)
-
-
+    
+   
 
 
 
