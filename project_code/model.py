@@ -154,19 +154,20 @@ class Model(nn.Module):
     def generate(self, output_length, seed_idx, criteria):
         out = seed_idx
 
-        for _ in range(output_length):
+        for i in range(output_length):
+            print(i)
             logit,_ = self(seed_idx, use = 'generate')  #[batch size * sequence_l * number_of_char]
             prob = F.softmax(logit[:,-1,:], dim = -1) #[batch size * number_of_char]
             
             if criteria == 'high_prob': 
-                next_idx = prob.argmax()
-                out  = torch.cat([out , next_idx[None, None]], dim=-1)
+                _, next_idx = prob.topk(1)
+                out  = torch.cat([out , next_idx], dim=-1)
             else: 
                 # given a probability, get 1 sample
                 next_idx = torch.multinomial(prob, 1)
                 out  = torch.cat([out , next_idx], dim=-1)
             
-            seed_idx = out[-c.sequence_l:]
+            seed_idx = out[:,-c.sequence_l:]
         return out.squeeze(0)
 
 
