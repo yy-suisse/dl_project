@@ -1,3 +1,5 @@
+import os
+
 def load_data_with_split(path,split,type='train'):
     """load data, split them into train and test, and compute lookup disctionary"""
     with open(path, 'r', encoding='utf-8') as f:
@@ -23,6 +25,16 @@ def decode(l,itos):
     """take a list of integers, output a string"""
     l = l.tolist()
     return ''.join([itos[i] for i in l])
+
+def save_generated_text(file_name,out):
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Join the directory and file name
+    file_path = os.path.join(output_dir, file_name)
+    with open(file_path, 'w') as file:
+    # Write the string to the file
+        file.write(out)
 
 class config:
     sequence_l = 128

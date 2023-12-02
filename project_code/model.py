@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from util import config
 import math
+from pathlib import Path 
 
 c = config()
 
@@ -136,8 +137,7 @@ class Model(nn.Module):
     def generate(self, output_length, seed_idx, criteria):
         out = seed_idx
 
-        for i in range(output_length):
-            print(i)
+        for _ in range(output_length):
             logit,_,_ = self(seed_idx, use = 'generate')  #[batch size * sequence_l * number_of_char]
             prob = F.softmax(logit[:,-1,:], dim = -1) #[batch size * number_of_char]
             
@@ -154,5 +154,17 @@ class Model(nn.Module):
     
    
 
+def save_model(model, MODEL_NAME):
+    # 1. Create models directory 
+    MODEL_PATH = Path("models")
+    MODEL_PATH.mkdir(parents=True, exist_ok=True)
+
+    # 2. Create model save path 
+    MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
+
+    # 3. Save the model state dict 
+    print(f"Saving model to: {MODEL_SAVE_PATH}")
+    torch.save(obj=model.state_dict(), # only saving the state_dict() only saves the models learned parameters
+            f=MODEL_SAVE_PATH) 
 
 
