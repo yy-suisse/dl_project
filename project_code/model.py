@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from util import config
-import math
 from pathlib import Path 
 
 c = config()

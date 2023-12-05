@@ -48,6 +48,5 @@ class config:
     learning_rate = 5e-4
     
     gamma = 0.9
-    split = 0.5 
-    # 0.8: 6972 batches of train, 1742 batch of test
-    # 0.5: 4357 batches of train, 4357 batch of test
+    split = 0.5
+
