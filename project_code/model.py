@@ -27,7 +27,7 @@ class Head(nn.Module):
         qkt = q@k.transpose(2,1)/(self.head_size**0.5) #[batch*l_seq*l_seq]
 
         qkt = qkt.masked_fill(self.tril[:L,:L] == 0, float('-inf'))
-        qkt = F.softmax(qkt, dim = -1)
+        qkt = F.softmax(qkt, dim = -1) # apply to last dim, so that the sum of them = 1
         z = qkt@v # z:[batch * l_seq*l_seq]@[batch, l_seq, head_size] = [batch, l_seq, head_size]
         return z
 
@@ -38,8 +38,8 @@ class MultiHeadAttention(nn.Module):
         self.w0 = nn.Linear(head_size*c.number_head,c.d_model)
 
     def forward(self,x):
-        head_outputs = [head(x) for head in self.self_attention]
-        output = torch.cat(head_outputs, dim=-1) # [batch, l_seq, head_size*number_head]
+        head_outputs = [head(x) for head in self.self_attention] # a list with 8 elements of [batch, l_seq, head_size]
+        output = torch.cat(head_outputs, dim=-1) # [batch, l_seq, head_size*number_head] = [batch, l_seq, d_model]
         output = self.w0(output) # output:[batch, l_seq, d_model], so that it can be added with residual
         return output
     
@@ -96,16 +96,16 @@ class Model(nn.Module):
         self.loss_compute = nn.CrossEntropyLoss()
 
     def forward(self, x, use='train',y = None ):
-        _,L = x.shape
-        emb_x = self.tok_emb(x)
+        _,L = x.shape #[batch,l_seq]
+        emb_x = self.tok_emb(x)  #[batch,l_seq,d_model]
         device = emb_x.device
-        emb_pos = self.position_embedding_table(torch.arange(L,device = device))
-        emb_x = emb_pos + emb_x
+        emb_pos = self.position_embedding_table(torch.arange(L,device = device)) #[batch,l_seq,d_model]
+        emb_x = emb_pos + emb_x #[batch,l_seq,d_model]
         
-        emb_x = self.dropout1(emb_x)
+        emb_x = self.dropout1(emb_x) #[batch,l_seq,d_model]
 
-        emb_x = self.blocks(emb_x)
-        x = self.norm_final(emb_x)
+        emb_x = self.blocks(emb_x) #[batch,l_seq,d_model]
+        x = self.norm_final(emb_x) #[batch,l_seq,d_model]
         logit = self.predict(x) #[batch size * sequence_l * number_of_char]
         # y:[batch size * l_sequence * 1]
 
