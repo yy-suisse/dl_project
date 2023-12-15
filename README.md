@@ -15,4 +15,8 @@
   # Train a new model, test it and generate text
   Execute main.ipynb
   # Generate new texts with pretrained models
+  The pretrained models can be found in [Drive](https://drive.google.com/drive/folders/1BZmO2twE9XscTUtDsi9No0Ua50h47A1h?usp=sharing)
+
+  
   Execute pretrained_model_generate.ipynb
+  
